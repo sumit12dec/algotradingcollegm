@@ -1,22 +1,29 @@
 import json
 import urllib
-
+import pymongo
 import requests
-import redis
 from kiteconnect import KiteConnect
 
-kite = KiteConnect(api_key="<YOUR-API-KEY>", debug=True)
-redis_con = redis.Redis(host="<REDIS-HOST>", port=6379, db=11, charset="utf-8", decode_responses=True, password="<PASSWORD>")
+
+host = "mongodb+srv://:@/?retryWrites=true&w=majority"
+client = pymongo.MongoClient(host)
+db = client['test']
+my_token_collection = db["my_tokens"]
+
+kite = KiteConnect(api_key="", debug=True)
 
 # def send_message_bot(chat_id, text):
 # 	url = 'https://api.telegram.org/<YOUR-BOT-TOKEN>/sendMessage'
 # 	r = requests.post(url, {'chat_id': chat_id, 'text': text}).json()
 
 def set_token(request_token):
-
-    data = kite.generate_session(request_token, api_secret="<ZERODHA-API-SECRET>")
-    redis_con.set("my_token", data["access_token"])
+    data = kite.generate_session(request_token, api_secret="")
+    my_token_collection.update_one({"user_id":""}, { "$set": { "token": data["access_token"] } }, upsert=True)
     return data["access_token"]
+
+def get_token():
+    x = my_token_collection.find_one({"user_id": ""})
+    return x["token"]
 
 def place_order(received_data, txn_type="BUY"):
 
@@ -28,7 +35,7 @@ def place_order(received_data, txn_type="BUY"):
         stop_at, book_at = book_at, stop_at
 
     qty_to_buy = [int(500/abs(order_price - stop_loss)) for order_price, stop_loss in zip(place_at, stop_at)]
-    kite.set_access_token(redis_con.get("my_token"))
+    kite.set_access_token(get_token())
 
     for tradingsymbol, quantity, execute_at, sl, tg in zip(stock_id, qty_to_buy, place_at, stop_at, book_at):
         order_id = kite.place_order(tradingsymbol=tradingsymbol, exchange="NSE", transaction_type=txn_type, quantity=quantity,
