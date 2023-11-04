@@ -4,7 +4,6 @@ import pymongo
 import requests
 from kiteconnect import KiteConnect
 
-
 host = "mongodb+srv://:@/?retryWrites=true&w=majority"
 client = pymongo.MongoClient(host)
 db = client['test']
@@ -26,7 +25,6 @@ def get_token():
     return x["token"]
 
 def place_order(received_data, txn_type="BUY"):
-
     stock_id = [urllib.parse.quote_plus(ts) for ts in received_data['stocks'].split(',')]
     place_at = [float(o) for o in received_data['trigger_prices'].split(',')]
     stop_at, book_at = zip(*[(round(_ - _*0.01, 1), round(_ + _*0.01, 1)) for _ in place_at])
@@ -44,13 +42,10 @@ def place_order(received_data, txn_type="BUY"):
         # send_message_bot(<YOUR-CHAT-ID>, "{} Order placed for {} at {}, SL: {}, TG: {}".format(txn_type, tradingsymbol, execute_at, sl, tg))
 
 def lambda_handler(event, context):
-
     query_dict = event.get('queryStringParameters', {})
     if event.get('rawPath') == '/set-token':
         return {'access_token': set_token(query_dict.get('request_token')), 'msg': 'Token was set successfully.'}
-        
     if event.get('rawPath') == '/webhook':
         received_data = json.loads(event['body'])
-        
         if received_data['scan_url'] == "near-day-high-108":
             place_order(received_data, txn_type="BUY")
